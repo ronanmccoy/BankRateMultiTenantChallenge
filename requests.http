@@ -1,0 +1,96 @@
+# Example requests for POST /v1/personalize.
+# Run with the VS Code REST Client extension or a JetBrains IDE's HTTP client.
+# Start the server first: `npm run dev` (or `FAKE_PRICING=error npm run dev` to simulate an outage).
+
+@baseUrl = http://localhost:3000
+
+### Tenant 0 member: savings rate + members-only rewards card
+POST {{baseUrl}}/v1/personalize
+Content-Type: application/json
+
+{
+  "tenant": "tenant0",
+  "surface": "offers",
+  "user": { "id": "member-1", "claims": {} }
+}
+
+### Switchback user, eligible: baseline savings + Switchback Partner Rate
+POST {{baseUrl}}/v1/personalize
+Content-Type: application/json
+
+{
+  "tenant": "switchback",
+  "surface": "offers",
+  "user": {
+    "id": "worker-1",
+    "claims": { "sb_tenure_months": 8, "sb_monthly_earnings_usd": 4100 }
+  }
+}
+
+### Switchback user, not eligible (tenure too short): baseline savings only
+# The decision record in the server log explains why: "tenureMonths >= 6: fail"
+POST {{baseUrl}}/v1/personalize
+Content-Type: application/json
+
+{
+  "tenant": "switchback",
+  "surface": "offers",
+  "user": {
+    "id": "worker-2",
+    "claims": { "sb_tenure_months": 3, "sb_monthly_earnings_usd": 4100 }
+  }
+}
+
+### Tenant 0 request carrying Switchback-shaped claims: still no Switchback offers
+POST {{baseUrl}}/v1/personalize
+Content-Type: application/json
+
+{
+  "tenant": "tenant0",
+  "surface": "offers",
+  "user": {
+    "id": "member-2",
+    "claims": { "sb_tenure_months": 99, "sb_monthly_earnings_usd": 99999 }
+  }
+}
+
+### Dashboard surface: includes the tenant's content (guide)
+POST {{baseUrl}}/v1/personalize
+Content-Type: application/json
+
+{
+  "tenant": "switchback",
+  "surface": "dashboard",
+  "user": {
+    "id": "worker-1",
+    "claims": { "sb_tenure_months": 8, "sb_monthly_earnings_usd": 4100 }
+  }
+}
+
+### Existing tenant 0 caller that doesn't send `tenant`: treated as tenant 0
+POST {{baseUrl}}/v1/personalize
+Content-Type: application/json
+
+{
+  "surface": "offers",
+  "user": { "id": "member-3", "claims": {} }
+}
+
+### Unknown tenant: 400 unknown_tenant
+POST {{baseUrl}}/v1/personalize
+Content-Type: application/json
+
+{
+  "tenant": "acme",
+  "surface": "offers",
+  "user": { "id": "someone", "claims": {} }
+}
+
+### Malformed request (missing user): 400
+POST {{baseUrl}}/v1/personalize
+Content-Type: application/json
+
+{
+  "tenant": "tenant0",
+  "surface": "offers"
+}
